@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>RELIK - L'Épopée (10 Ans)</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; font-family: 'Arial', sans-serif; cursor: default; }
+        #video-container { position: relative; width: 100vw; height: 100vh; background: #000; }
+
+        .slide {
+            position: absolute; width: 100%; height: 100%;
+            opacity: 0;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            transition: opacity 1.5s ease-in-out, transform 10s linear;
+            transform: scale(1.1);
+        }
+
+        .slide.active { opacity: 1; transform: scale(1); }
+
+        /* Effet inverse (zoom in) pour la fin */
+        .slide.zoom-in { transform: scale(1); }
+        .slide.zoom-in.active { transform: scale(1.1); }
+
+        /* Pour la dernière image (s35), on fait un zoom 3x plus rapide (3.3s au lieu de 10s) 
+           et un effacement normal */
+        #s35 {
+            transition: opacity 1.5s ease-in-out, transform 3.33s linear !important;
+        }
+
+        #play-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            display: flex; justify-content: center; align-items: center; z-index: 100;
+        }
+
+        button {
+            padding: 20px 50px; font-size: 24px; cursor: pointer;
+            background: #FFD700; border: none; border-radius: 50px; font-weight: bold;
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        /* Animation de scintillement du feu */
+        #fire-glow {
+            position: fixed; inset: 0;
+            background: radial-gradient(circle, rgba(255,100,0,0.15) 0%, rgba(0,0,0,0) 70%);
+            mix-blend-mode: screen;
+            pointer-events: none;
+            z-index: 5;
+            opacity: 0;
+            animation: flicker 0.15s infinite alternate;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.4; transform: scale(1); }
+            100% { opacity: 0.7; transform: scale(1.05); }
+        }
+
+        .particle {
+            position: absolute;
+            background: #ffaa00;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 6;
+        }
+
+        /* Lueur pulsante pour le texte RELIK dans le sol (Slide 2) */
+        #s2::after {
+            content: '';
+            position: absolute;
+            bottom: 25%; left: 50%;
+            width: 300px; height: 100px;
+            transform: translateX(-50%);
+            background: radial-gradient(ellipse at center, rgba(255, 215, 0, 0.4) 0%, rgba(0, 0, 0, 0) 70%);
+            opacity: 0;
+            transition: opacity 2s ease;
+            mix-blend-mode: screen;
+            z-index: 2;
+        }
+
+        #s2.active::after {
+            animation: pulse-glow 2s infinite alternate ease-in-out;
+        }
+
+        @keyframes pulse-glow {
+            0% { opacity: 0.3; transform: translateX(-50%) scale(1); }
+            100% { opacity: 0.8; transform: translateX(-50%) scale(1.1); }
+        }
+
+        /* Poussière fine spécifique (Slide 2) */
+        .dust {
+            position: absolute;
+            background: rgba(200, 180, 150, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 3;
+            filter: blur(1px);
+        }
+
+        /* Contrôles de lecture */
+        #controls {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 100; display: none; align-items: center; gap: 15px;
+            background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 30px;
+            width: 80%; border: 1px solid rgba(255, 215, 0, 0.3);
+            transition: opacity 0.5s ease;
+            opacity: 1;
+        }
+        
+        #controls.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        #seekbar { flex-grow: 1; cursor: pointer; accent-color: #FFD700; }
+
+        #btnPause { background: #FFD700; border: none; padding: 5px 15px; border-radius: 15px; cursor: pointer; font-weight: bold; }
+
+        #time-display { color: #FFD700; font-family: monospace; min-width: 50px; }
+    </style>
+</head>
+<body>
+
+    <div id="play-overlay">
+        <button onclick="startEpic()">LANCER L'ÉPOPÉE RELIK</button>
+    </div>
+
+    <div id="fire-glow"></div>
+
+    <audio id="music" src="musique/0 musique parole 10 ans.mp3"></audio>
+
+    <div id="video-container">
+        <div id="s1" class="slide" style="background-image: url('images/1 intro relik 10 ans.png');"></div>
+        <div id="s2" class="slide" style="background-image: url('images/2 intro relik-banniere.webp');"></div>
+        <div id="s3" class="slide" style="background-image: url('images/3 intro.jpg');"></div>
+        <div id="s4" class="slide" style="background-image: url('images/4 verse1-1 village petite cabane.png');"></div>
+        <div id="s5" class="slide" style="background-image: url('images/5 verse1-2 un nom, un signe.png');"></div>
+        <div id="s6" class="slide" style="background-image: url('images/6 verse1-3 un nom, un signe avec cleo.png');"></div>
+        <div id="s7" class="slide" style="background-image: url('images/7 verse1-4 arrive des premiers.png');"></div>
+        <div id="s8" class="slide" style="background-image: url('images/8 verse1-5 les premiers murs.png');"></div>
+        <div id="s9" class="slide" style="background-image: url('images/9 Chorus1-7.0 intro.png');"></div>
+        <div id="s10" class="slide" style="background-image: url('images/10 Chorus1 leve les verres.png');"></div>
+        <div id="s11" class="slide" style="background-image: url('images/11 verse1-6_premier_victoire.webp');"></div>
+        <div id="s12" class="slide" style="background-image: url('images/12 verse1-7 mur changer de pierre.jpg');"></div>
+        <div id="s13" class="slide" style="background-image: url('images/12.1 intro relik-banniere - Copie.webp');"></div>
+        <div id="s14" class="slide" style="background-image: url('images/13 Chorus1-9 fete grave dans pierre.png');"></div>
+        <div id="s15" class="slide" style="background-image: url('images/14 Chorus1-10 fete clan legendaire.png');"></div>
+        <div id="s16" class="slide" style="background-image: url('images/15_verse2-1_premiere_defaites.webp');"></div>
+        <div id="s17" class="slide" style="background-image: url('images/16_verse2-3_discution_de_strategie.webp');"></div>
+        <div id="s18" class="slide" style="background-image: url('images/17 verse2-6 discution de strategie.jpg');"></div>
+        <div id="s19" class="slide" style="background-image: url('images/19 verse2-8 famille 1.png');"></div>
+        <div id="s20" class="slide" style="background-image: url('images/20 verse2_9 famille 1.png');"></div>
+        <div id="s21" class="slide" style="background-image: url('images/21 Chorus2-1 intro.png');"></div>
+        <div id="s22" class="slide" style="background-image: url('images/22 Chorus2-1 2018.png');"></div>
+        <div id="s23" class="slide" style="background-image: url('images/23 Chorus2-1 t13.png');"></div>
+        <div id="s24" class="slide" style="background-image: url('images/24 Chorus2-1 2019.png');"></div>
+        <div id="s25" class="slide" style="background-image: url('images/25.1 verse2-7 famille 1.png');"></div>
+        <div id="s26" class="slide" style="background-image: url('images/26 Chorus2- 1 champion II.jpg');"></div>
+        <div id="s27" class="slide" style="background-image: url('images/27 passationdeadpool_chef.webp');"></div>
+        <div id="s28" class="slide" style="background-image: url('images/28 passation celebration.jpg');"></div>
+        <div id="s29" class="slide" style="background-image: url('images/29 bridge 1-1 memoriale.webp');"></div>
+        <div id="s30" class="slide" style="background-image: url('images/30 gros plan memorial.webp');"></div>
+        <div id="s31" class="slide zoom-in" style="background-image: url('images/31 10 relik.png');"></div>
+        <div id="s32" class="slide zoom-in" style="background-image: url('images/32 photo de groupe.png');"></div>
+        <div id="s35" class="slide zoom-in" style="background-image: url('images/35 logo clan.png');"></div>
+        <div id="s36" class="slide" style="background-color: black;"></div>
+    </div>
+
+    <!-- Contrôles de lecture -->
+    <div id="controls">
+        <button onclick="togglePlay()" id="btnPause">PAUSE</button>
+        <input type="range" id="seekbar" value="0" step="0.1">
+        <span id="time-display">00:00</span>
+    </div>
+
+    <script>
+        const music = document.getElementById('music');
+        const container = document.getElementById('video-container');
+        
+        // Eléments de contrôle
+        const seekbar = document.getElementById('seekbar');
+        const timeDisplay = document.getElementById('time-display');
+        const btnPause = document.getElementById('btnPause');
+        const controls = document.getElementById('controls');
+
+        const timeline = [
+            { time: 1,   slide: 's1',  text: "" },
+            { time: 5,   slide: 's2',  text: "Au tout début, village vide..." },
+            { time: 7,   slide: 's3',  text: "Cléö qui trace dans la poussière..." },
+            { time: 13,  slide: 's4',  text: "Un nom, un signe, une folie." },
+            { time: 19,  slide: 's5',  text: "Quelques guerriers, même délire..." },
+            { time: 21,  slide: 's6',  text: "On se jurait : On va monter, on va durer !" },
+            { time: 24,  slide: 's7',  text: "Pour chaque nuit, chaque victoire..." },
+            { time: 30,  slide: 's8',  text: "Relik gravé sur chaque combat." },
+            { time: 37,  slide: 's9',  text: "Dix ans des Relik, on lève nos verres !" },
+            { time: 40,  slide: 's10', text: "Gravé dans la terre..." },
+            { time: 44,  slide: 's11', text: "Clan légendaire." },
+            { time: 49,  slide: 's12', text: "On a connu la rage des défaites..." },
+            { time: 59,  slide: 's13', text: "Les plans qui tombent, les murs en miettes." },
+            { time: 62,  slide: 's14', text: "Le chat en feu, les fautes, les cris..." },
+            { time: 67,  slide: 's15', text: "Discussions tactiques après minuit." },
+            { time: 70,  slide: 's16', text: "Mais le plus fort, c'est la famille." },
+            { time: 74,  slide: 's17', text: "" },
+            { time: 78,  slide: 's18', text: "" },
+            { time: 84,  slide: 's19', text: "" },
+            { time: 88,  slide: 's20', text: "" },
+            { time: 92,  slide: 's21', text: "" },
+            { time: 94,  slide: 's22', text: "" },
+            { time: 98,  slide: 's23', text: "" },
+            { time: 102, slide: 's24', text: "" },
+            { time: 108, slide: 's25', text: "" },
+            { time: 112, slide: 's26', text: "" },
+            { time: 116, slide: 's27', text: "" },
+            { time: 120, slide: 's28', text: "" },
+            { time: 126, slide: 's29', text: "" },
+            { time: 131, slide: 's30', text: "" },
+            { time: 151, slide: 's31', text: "" },
+            { time: 157, slide: 's32', text: "" },
+            { time: 175, slide: 's35', text: "" },
+            { time: 187, slide: 's36', text: "" }
+        ];
+
+        function createParticle() {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            const size = Math.random() * 4 + 2 + 'px';
+            p.style.width = size;
+            p.style.height = size;
+            p.style.left = Math.random() * 60 + 20 + 'vw';
+            p.style.top = '100vh';
+            p.style.opacity = Math.random();
+            container.appendChild(p);
+            
+            const duration = Math.random() * 3000 + 2000;
+            p.animate([
+                { transform: 'translateY(0) translateX(0)', opacity: 1 },
+                { transform: `translateY(-100vh) translateX(${(Math.random() - 0.5) * 200}px)`, opacity: 0 }
+            ], { duration: duration, easing: 'ease-out' }).onfinish = () => p.remove();
+        }
+
+        function startEpic() {
+            document.getElementById('play-overlay').style.display = 'none';
+            
+            // Tente de jouer la musique et capture l'erreur si le fichier est absent
+            let playPromise = music.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => console.warn("Musique absente/bloquée, mode démo activé."));
+            }
+            
+            document.getElementById('controls').style.display = 'flex'; // Affiche la barre de contrôle
+            resetIdleTimer(); // Initialise le timer pour cacher les contrôles
+
+            setInterval(createParticle, 200); // Lance les étincelles
+            requestAnimationFrame(render);
+        }
+
+        function createDust(targetElement) {
+            const d = document.createElement('div');
+            d.className = 'dust';
+            const size = Math.random() * 6 + 1 + 'px';
+            d.style.width = size;
+            d.style.height = size;
+            // Center around the bottom (where Cléö traces)
+            d.style.left = 40 + Math.random() * 20 + '%';
+            d.style.bottom = 20 + Math.random() * 15 + '%';
+            d.style.opacity = Math.random() * 0.8;
+            targetElement.appendChild(d);
+            
+            const duration = Math.random() * 2000 + 1000;
+            d.animate([
+                { transform: 'translateY(0) translateX(0) scale(1)', opacity: 0.8 },
+                { transform: `translateY(-${Math.random() * 50 + 20}px) translateX(${(Math.random() - 0.5) * 60}px) scale(0)`, opacity: 0 }
+            ], { duration: duration, easing: 'ease-out' }).onfinish = () => d.remove();
+        }
+
+        let dustInterval;
+        let startTime = null;
+
+        // 1. Mettre à jour la barre de progression pendant la lecture
+        music.addEventListener('timeupdate', () => {
+            if (!isNaN(music.duration)) {
+                const value = (music.currentTime / music.duration) * 100;
+                seekbar.value = value;
+                
+                // Affichage du temps formaté (ex: 01:22)
+                let mins = Math.floor(music.currentTime / 60);
+                let secs = Math.floor(music.currentTime % 60);
+                timeDisplay.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+            }
+        });
+
+        // 2. Déplacer la lecture quand on bouge la barre (Aller en avant/arrière)
+        seekbar.addEventListener('input', () => {
+            const time = (seekbar.value / 100) * music.duration;
+            music.currentTime = time;
+        });
+
+        // 3. Fonction Play/Pause
+        function togglePlay() {
+            if (music.paused) {
+                music.play();
+                btnPause.innerText = "PAUSE";
+                // Réinitialise startTime pour le mode démo (si musique bloquée)
+                startTime = Date.now() - (music.currentTime * 1000);
+            } else {
+                music.pause();
+                btnPause.innerText = "PLAY";
+            }
+        }
+
+        // 4. Cacher les contrôles et la souris après un moment d'inactivité
+        let hideControlsTimeout;
+        function resetIdleTimer() {
+            // Affiche les contrôles et curseur
+            controls.classList.remove('hidden');
+            document.body.style.cursor = 'default';
+
+            clearTimeout(hideControlsTimeout);
+
+            // Ne cacher que si on a commencé (et les contrôles sont supposés être visibles)
+            if (controls.style.display !== 'none') {
+                hideControlsTimeout = setTimeout(() => {
+                    controls.classList.add('hidden');
+                    document.body.style.cursor = 'none'; // cache également le curseur de la souris
+                }, 2500); // Se cache après 2.5 secondes d'inactivité
+            }
+        }
+
+        // Écoute des mouvements de souris
+        window.addEventListener('mousemove', resetIdleTimer);
+        window.addEventListener('mousedown', resetIdleTimer);
+        window.addEventListener('keydown', resetIdleTimer);
+
+        function render() {
+            // Si la musique ne se lance pas (fichier manquant), on utilise un pseudo-temps basé sur la date
+            let currentTime = music.currentTime;
+            if (music.paused && music.readyState === 0) { // On est en mode démo !
+                if (!startTime) startTime = Date.now();
+                // Ne s'écoule pas si en pause visuelle
+                if (btnPause.innerText === "PAUSE") {
+                    currentTime = (Date.now() - startTime) / 1000;
+                } else {
+                    currentTime = music.currentTime;
+                    // Décaler startTime pour que ça reprenne là où on en était
+                    startTime = Date.now() - (currentTime * 1000); 
+                }
+            }
+
+            const currentEvent = [...timeline].reverse().find(e => currentTime >= e.time);
+
+            if (currentEvent) {
+                document.querySelectorAll('.slide').forEach(s => {
+                    s.classList.remove('active');
+                    // Stop dust si ce n'est plus s2
+                    if (s.id === 's2' && currentEvent.slide !== 's2') {
+                        clearInterval(dustInterval);
+                        dustInterval = null;
+                    }
+                });
+                const activeSlide = document.getElementById(currentEvent.slide);
+                if (activeSlide) {
+                    activeSlide.classList.add('active');
+                    if (currentEvent.slide === 's2' && !dustInterval) {
+                        dustInterval = setInterval(() => createDust(activeSlide), 150);
+                    }
+                }
+            }
+            requestAnimationFrame(render);
+        }
+    </script>
+</body>
+</html>
