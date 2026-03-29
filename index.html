@@ -125,11 +125,11 @@
         <button onclick="startEpic()">LANCER L'ÉPOPÉE RELIK</button>
     </div>
 
-    <div id="fire-glow"></div>
-
     <audio id="music" src="musique/0 musique parole 10 ans.mp3"></audio>
 
     <div id="video-container">
+        <!-- Ajouté dans le container pour que la capture prenne l'effet en compte -->
+        <div id="fire-glow"></div>
         <div id="s1" class="slide" style="background-image: url('images/1 intro relik 10 ans.png');"></div>
         <div id="s2" class="slide" style="background-image: url('images/2 intro relik-banniere.webp');"></div>
         <div id="s3" class="slide" style="background-image: url('images/3 intro.jpg');"></div>
@@ -173,10 +173,20 @@
         <span id="time-display">00:00</span>
     </div>
 
+    <div id="download-message" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.95);z-index:9999;justify-content:center;align-items:center;flex-direction:column;color:#FFD700;font-size:2em;">
+        <div>Votre enregistrement est prêt !</div>
+        <button id="manual-download" style="margin-top:30px;padding:20px 50px;font-size:1em;background:#FFD700;border:none;border-radius:50px;font-weight:bold;box-shadow:0 0 20px rgba(255,215,0,0.4);cursor:pointer;">Télécharger la vidéo</button>
+    </div>
+
     <script>
         const music = document.getElementById('music');
         const container = document.getElementById('video-container');
         
+        // Variables pour MediaRecorder (capture vidéo native de l'écran)
+        let mediaRecorder;
+        let recordedChunks = [];
+        let isRecording_finished = false;
+
         // Eléments de contrôle
         const seekbar = document.getElementById('seekbar');
         const timeDisplay = document.getElementById('time-display');
@@ -238,19 +248,72 @@
             ], { duration: duration, easing: 'ease-out' }).onfinish = () => p.remove();
         }
 
-        function startEpic() {
-            document.getElementById('play-overlay').style.display = 'none';
-            
-            // Tente de jouer la musique et capture l'erreur si le fichier est absent
-            let playPromise = music.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(e => console.warn("Musique absente/bloquée, mode démo activé."));
-            }
-            
-            document.getElementById('controls').style.display = 'flex'; // Affiche la barre de contrôle
-            resetIdleTimer(); // Initialise le timer pour cacher les contrôles
+        async function startEpic() {
+            // Prépare la musique pour la capture
+            await music.play();
+            music.pause(); // On la relancera après la capture
+            music.currentTime = 0;
 
-            setInterval(createParticle, 200); // Lance les étincelles
+            // Capture vidéo de l'onglet (sans audio)
+            let displayStream;
+            try {
+                displayStream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { frameRate: 60 },
+                    audio: false // on va injecter l'audio manuellement
+                });
+            } catch (err) {
+                alert("Vous devez autoriser le partage d'écran pour enregistrer la vidéo.");
+                return;
+            }
+
+            // Capture audio de la musique
+            const audioStream = music.captureStream();
+
+            // Combine les deux flux (vidéo + audio)
+            const combinedStream = new MediaStream([
+                ...displayStream.getVideoTracks(),
+                ...audioStream.getAudioTracks()
+            ]);
+
+            recordedChunks = [];
+            mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm; codecs=vp9' });
+
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0) recordedChunks.push(event.data);
+            };
+
+            mediaRecorder.onstop = () => {
+                if (recordedChunks.length === 0) {
+                    alert("Aucune donnée vidéo n'a été enregistrée. Veuillez réessayer.");
+                    return;
+                }
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'Relik_10Ans_HD.webm';
+                document.body.appendChild(a);
+                // Tentative de téléchargement automatique
+                a.click();
+                setTimeout(() => { document.body.removeChild(a); }, 100);
+                // Affiche un message si le téléchargement n'a pas démarré
+                setTimeout(() => {
+                    // Vérifie si le fichier est téléchargé (pas fiable à 100%, mais utile)
+                    // Affiche le message dans tous les cas pour garantir l'accès au lien
+                    const msg = document.getElementById('download-message');
+                    msg.style.display = 'flex';
+                    const btn = document.getElementById('manual-download');
+                    btn.onclick = () => { window.open(url, '_blank'); };
+                }, 1000);
+            };
+
+            mediaRecorder.start();
+            music.play(); // Lance la musique en même temps que l'enregistrement
+
+            document.getElementById('play-overlay').style.display = 'none';
+            document.getElementById('controls').style.display = 'flex';
+            resetIdleTimer();
+            setInterval(createParticle, 200);
             requestAnimationFrame(render);
         }
 
@@ -365,6 +428,17 @@
                     }
                 }
             }
+
+            // Fin de la vidéo au bout de 187 secondes
+            if (currentTime >= 187 && !isRecording_finished) {
+                isRecording_finished = true;
+                if (mediaRecorder && mediaRecorder.state === 'recording') {
+                    mediaRecorder.stop();
+                    mediaRecorder.stream.getTracks().forEach(track => track.stop()); // Arrête le partage d'écran
+                    console.log("Enregistrement terminé et fenetre de téléchargement lancée.");
+                }
+            }
+
             requestAnimationFrame(render);
         }
     </script>
